@@ -22,8 +22,6 @@ model = genai.GenerativeModel("gemini-2.5-flash-lite")
 
 
 
-
-
 def preprocess_title(title):
    title = title.strip()
    title = re.sub(r"\s+", " ", title) 
