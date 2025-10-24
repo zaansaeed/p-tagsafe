@@ -1,15 +1,17 @@
 import os
 import re
 from dotenv import load_dotenv
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel, Field
 import google.generativeai as genai
+from PIL import Image  # For handling image objects
+import io  # For reading image bytes
 
 # Load environment variables from .env file
 load_dotenv()
 
 # --- Configuration ---
-MODEL_ID = "gemini-2.5-flash-lite"
+MODEL_ID = "gemini-2.5-flash-lite" # Updated to a model that supports vision
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 if not GOOGLE_API_KEY:
@@ -18,6 +20,7 @@ if not GOOGLE_API_KEY:
 # Configure the generative AI model
 try:
     genai.configure(api_key=GOOGLE_API_KEY)
+    # Ensure the model used supports vision
     model = genai.GenerativeModel(MODEL_ID)
 except Exception as e:
     # Handle potential configuration errors, e.g., invalid API key
@@ -26,47 +29,42 @@ except Exception as e:
 # --- API Setup ---
 router = APIRouter(prefix="/tags", tags=["tags"])
 
-class TagGenerationRequest(BaseModel):
-    """Defines the input structure for the tag generation request."""
-    nice_class: int = Field(..., description="The Nice Classification code for the product (e.g., 25 for apparel).")
-    product_text: str = Field(default="", description="Any text printed directly on the product.")
-    product_description: str = Field(..., description="A general description of the product.")
-    
 class TagGenerationResponse(BaseModel):
     """Defines the output structure, containing the list of generated tags."""
     tags: list[str]
 
 # --- Core Logic ---
-def generate_tags_from_llm(nice_class: int, product_text: str, product_description: str) -> list[str]:
+def generate_tags_from_llm(nice_class: int, product_text: str, image: Image.Image) -> list[str]:
     """
-    Generates 50 marketable tags using the generative AI model.
+    Generates 50 marketable tags using the generative AI model based on an image.
 
     Args:
         nice_class: The product's Nice Classification code.
-        product_text: Text found on the product image.
-        product_description: A description of the product.
+        product_text: Text found on the product.
+        image: A PIL Image object of the product.
 
     Returns:
-        A list of 50 generated tags.
+        A list of generated tags.
     """
-    # This detailed prompt guides the AI to generate relevant, concise, and marketable tags.
+    # This prompt is now multi-modal, guiding the AI to analyze the image.
     prompt = f"""
     You are an expert e-commerce assistant specializing in SEO and product tagging.
-    Your task is to generate exactly 50 marketable and descriptive tags for a product.
+    Your task is to generate exactly 50 marketable and descriptive tags for the product in the image.
 
     Product Details:
     - **Nice Classification:** Class {nice_class}
-    - **Product Description:** {product_description}
-    - **Text on Product:** "{product_text}"
+    - **Text on Product (if any):** "{product_text}"
+    - **Product Image:** [See attached image]
 
     Instructions:
-    1.  **Tag Quantity:** Generate exactly 50 unique tags.
-    2.  **Character Limit:** Each tag must be 20 characters or less. This is a strict limit.
-    3.  **Relevance:** Tags must be highly relevant to the product description, the text on the product, and its Nice Class.
-    4.  **Content Focus:** Incorporate keywords related to the product's style, theme, materials, target audience, and potential use cases. Use the "Text on Product" as a primary source of inspiration.
-    5.  **Format:** Return the tags as a plain list, with each tag on a new line. Do not include numbers, bullet points, or any other formatting.
+    1.  **Analyze the Image:** Look at the product's style, color, shape, and overall theme.
+    2.  **Tag Quantity:** Generate exactly 50 unique tags.
+    3.  **Character Limit:** Each tag must be 20 characters or less. This is a strict limit.
+    4.  **Relevance:** Tags must be highly relevant to the product shown, the text on it, and its Nice Class.
+    5.  **Content Focus:** Incorporate keywords related to the product's style, theme, materials, target audience, and potential use cases. Use the "Text on Product" as a primary source of inspiration.
+    6.  **Format:** Return the tags as a plain list, with each tag on a new line. Do not include numbers, bullet points, or any other formatting.
 
-    Example for a Class 25 t-shirt with text "Best Dad":
+    Example for a Class 25 t-shirt (image of a black shirt with text "Best Dad"):
     Best Dad Shirt
     Gift for Father
     Dad Birthday Gift
@@ -79,8 +77,9 @@ def generate_tags_from_llm(nice_class: int, product_text: str, product_descripti
     """
 
     try:
+        # Pass both the text prompt and the image object to the model
         response = model.generate_content(
-            prompt,
+            [prompt, image], # Multi-modal input
             generation_config={"temperature": 0.7} # A higher temperature encourages more creative/diverse tags
         )
         
@@ -101,14 +100,29 @@ def generate_tags_from_llm(nice_class: int, product_text: str, product_descripti
 
 # --- API Endpoint ---
 @router.post("/generate", response_model=TagGenerationResponse)
-async def generate_marketable_tags(request: TagGenerationRequest):
+async def generate_marketable_tags(
+    nice_class: int = Form(...),
+    product_text: str = Form(default=""),
+    image_file: UploadFile = File(...)
+):
     """
-    API endpoint to generate 50 marketable tags based on product information.
+    API endpoint to generate 50 marketable tags based on a product image and info.
     """
+    # Validate image file type
+    if not image_file.content_type or not image_file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Invalid file type. Please upload an image.")
+
+    try:
+        # Read image bytes and open with PIL
+        image_bytes = await image_file.read()
+        image_pil = Image.open(io.BytesIO(image_bytes))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to read or process image file: {e}")
+
     tags = generate_tags_from_llm(
-        nice_class=request.nice_class,
-        product_text=request.product_text,
-        product_description=request.product_description
+        nice_class=nice_class,
+        product_text=product_text,
+        image=image_pil
     )
     
     if not tags:
@@ -120,23 +134,26 @@ async def generate_marketable_tags(request: TagGenerationRequest):
 if __name__ == "__main__":
     """
     This block allows for direct testing of the script without running the full API.
-    It uses a hardcoded example as requested.
+    It loads a hardcoded example image ("image.png") from the file system.
     """
     print("--- Running Standalone Test ---")
     
     # Hardcoded example data for testing
     example_nice_class = 25
     example_product_text = "Best Dad"
-    example_product_description = "A standard black t-shirt for men, celebrating fathers."
     
     print(f"Test Case: Nice Class='{example_nice_class}', Text='{example_product_text}'")
     
     try:
+        # Load the test image from disk
+        example_image = Image.open("image.png")
+        print("Successfully loaded 'image.png' for testing.")
+        
         # Call the core logic function directly
         generated_tags = generate_tags_from_llm(
             nice_class=example_nice_class,
             product_text=example_product_text,
-            product_description=example_product_description
+            image=example_image
         )
         
         # Print the results
@@ -147,7 +164,12 @@ if __name__ == "__main__":
         else:
             print("\nGeneration failed. No tags were returned.")
             
+    except FileNotFoundError:
+        print("\n--- TEST FAILED ---")
+        print("Error: Test image 'image.png' not found in the project directory.")
+        print("Please add an image file named 'image.png' to run the standalone test.")
     except Exception as e:
         print(f"\nAn error occurred during the test: {e}")
     
     print("\n--- Test Complete ---")
+
