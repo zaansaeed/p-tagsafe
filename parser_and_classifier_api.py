@@ -2,19 +2,10 @@
 import os, json
 from typing import Optional
 from fastapi import APIRouter, UploadFile, File, HTTPException
-import google.generativeai as genai
-from dotenv import load_dotenv
-
-load_dotenv()
+from config import MODEL_ID, get_model
 
 
-MODEL_ID = "gemini-2.5-flash-lite"
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-
-if not GOOGLE_API_KEY:
-    raise RuntimeError("Missing GOOGLE_API_KEY in environment")
-
-genai.configure(api_key=GOOGLE_API_KEY)
+model = get_model(MODEL_ID)
 
 SYSTEM_INSTRUCTIONS = (
     "You are a vision assistant. Extract readable text from the image and "
@@ -63,7 +54,7 @@ GENERATION_CONFIG = {
     "temperature": 0.2,
 }
 
-model = genai.GenerativeModel(
+model = get_model(
     MODEL_ID,
     system_instruction=SYSTEM_INSTRUCTIONS,
 )

@@ -3,30 +3,12 @@ import re
 from dotenv import load_dotenv
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel, Field
-import google.generativeai as genai
 from PIL import Image  # For handling image objects
-import io  # For reading image bytes
+import io
+from config import MODEL_ID, get_model
 
-# Load environment variables from .env file
-load_dotenv()
+model = get_model(MODEL_ID)
 
-# --- Configuration ---
-MODEL_ID = "gemini-2.5-flash-lite" # Updated to a model that supports vision
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-
-if not GOOGLE_API_KEY:
-    raise RuntimeError("Missing GOOGLE_API_KEY environment variable.")
-
-# Configure the generative AI model
-try:
-    genai.configure(api_key=GOOGLE_API_KEY)
-    # Ensure the model used supports vision
-    model = genai.GenerativeModel(MODEL_ID)
-except Exception as e:
-    # Handle potential configuration errors, e.g., invalid API key
-    raise RuntimeError(f"Failed to configure Google Generative AI: {e}")
-
-# --- API Setup ---
 router = APIRouter(prefix="/tags", tags=["tags"])
 
 class TagGenerationResponse(BaseModel):

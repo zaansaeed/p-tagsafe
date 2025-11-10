@@ -1,17 +1,14 @@
 import os
-import google.generativeai as genai
 import re
 from dotenv import load_dotenv
+from config import get_model, MODEL_ID
 
 
 load_dotenv()
-api_key = os.getenv("API_KEY")
-
-temperature = 0 
-n_output = 50 
-
-genai.configure(api_key=api_key)
-model = genai.GenerativeModel("gemini-2.5-flash-lite")
+# use centralized model from config; leaves core generation logic unchanged
+model = get_model(MODEL_ID)
+temperature = 0
+n_output = 50
 
 
 
@@ -132,7 +129,7 @@ for title in etsy_titles:
     for r in safe:
         print(f"- {r['phrase']}")
 
-    
+
 
 
 
