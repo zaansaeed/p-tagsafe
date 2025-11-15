@@ -116,18 +116,19 @@ def label_and_filter_phrases(generated_text):
     return labeled, safe_only
 
 
+# Guard the example/test run so importing this module doesn't execute it.
+if __name__ == "__main__":
+    for title in etsy_titles:
+        print(f"\nTitle: {title}")
+        output = generating_phrases(title)
+        labeled, safe = label_and_filter_phrases(output)
 
-for title in etsy_titles:
-    print(f"\nTitle: {title}")
-    output = generating_phrases(title)
-    labeled, safe = label_and_filter_phrases(output)
+        for r in labeled:
+            print(f"{r['emoji']}  {r['phrase']}  (score={r['score']})")
 
-    for r in labeled:
-        print(f"{r['emoji']}  {r['phrase']}  (score={r['score']})")
-
-    print("\nSAFE PHRASES:")
-    for r in safe:
-        print(f"- {r['phrase']}")
+        print("\nSAFE PHRASES:")
+        for r in safe:
+            print(f"- {r['phrase']}")
 
 
 

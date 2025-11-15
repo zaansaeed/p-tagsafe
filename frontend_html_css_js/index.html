@@ -1,3 +1,4 @@
+<!doctype html>
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
@@ -12,13 +13,11 @@
         <p>Paste a listing description and/or upload an image. When you click <em>Check</em>, non‑trademarked words & phrases will be displayed.</p>
     </header>
 
-
     <main class="container" aria-live="polite">
         <!-- Image Upload Card -->
         <section class="card" aria-labelledby="img-title">
             <h2 id="img-title">Upload Listing Image</h2>
             <p class="sub">Drag & drop a product photo (PNG/JPG/WebP) or click to browse.</p>
-
 
             <div id="drop" class="drop" tabindex="0" role="button" aria-describedby="drop-hint">
                 <div class="icon">📷</div>
@@ -28,7 +27,6 @@
                 <div id="drop-hint" class="hint">Max 10 MB • 1 image • PNG, JPG, JPEG, or WebP</div>
                 <input id="file" type="file" accept="image/*" />
             </div>
-
 
             <div id="preview" class="preview" aria-live="polite">
                 <img id="thumb" alt="Selected image preview" />
@@ -59,7 +57,6 @@
             </div>
         </section>
 
-
         <!-- Text Input Card -->
         <section class="card" aria-labelledby="text-title">
             <h2 id="text-title">Listing Description</h2>
@@ -75,7 +72,6 @@
             </div>
         </section>
 
-
         <!-- Actions / Results -->
         <section class="actions">
             <div class="notice">The <em>Check</em> button below simulates results based on example description. </div>
@@ -85,18 +81,25 @@
             </div>
         </section>
 
-
         <section id="results" class="results card" aria-labelledby="results-title" hidden>
             <h3 id="results-title">Non‑trademarked candidates</h3>
             <div id="loading" class="skeleton" aria-hidden="true"></div>
-            <div id="chips" class="chips" hidden></div>
+
+            <!-- Plain-text area for easy copy/paste (populated by script.js if present) -->
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <label style="font-weight:600;">Non-trademarked candidates</label>
+                <button id="copyBtn" class="secondary" type="button" style="display:none;">Copy</button>
+            </div>
+
+            <textarea id="phrasesText" rows="6" style="width:100%; display:none;"></textarea>
+
+
             <p id="empty" class="sub" hidden>Nothing to show yet. Add an image or some text and click <em>Check</em>.</p>
         </section>
     </main>
 
+   <!-- <script src="/static/script.js"></script> --->
+    <script src="/static/script.js?v=2"></script>
 
-    
-
-    <script src="/static/script.js"></script>
 </body>
 </html>
