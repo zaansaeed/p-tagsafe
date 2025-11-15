@@ -1,10 +1,8 @@
-/* CLEAN + FIXED script.js — fully working classify + analyze + text output */
-
 const $ = (s) => document.querySelector(s);
 
 // Elements
 const drop = $('#drop');
-let fileInput = $('#file');
+const fileInput = $('#file');     
 const browse = $('#browse');
 const preview = $('#preview');
 const thumb = $('#thumb');
@@ -31,6 +29,7 @@ const loading = $('#loading');
 const empty = $('#empty');
 
 const phrasesTextEl = $('#phrasesText');
+const copyBtn = $('#copyBtn');
 const tagsContainer = $('#tagsList') || null;
 
 // State
@@ -38,25 +37,8 @@ let currentFile = null;
 let hasClassified = false;
 
 /* -------------------------------------------------------
-   1. RESET FILE INPUT (remove all old listeners)
+   Helper to attach click once
 ---------------------------------------------------------*/
-function resetFileInput() {
-  const orig = document.getElementById('file');
-  if (!orig) return;
-
-  const clone = orig.cloneNode(true);
-  orig.parentNode.replaceChild(clone, orig);
-
-  fileInput = clone;
-  fileInput.id = 'file';
-}
-resetFileInput();
-
-/* -------------------------------------------------------
-   2. ATTACH FILE INPUT + DROP HANDLERS (AFTER RESET)
----------------------------------------------------------*/
-
-// Helper to attach click handler only once
 function attachClickOnce(el, fn) {
   if (!el || el._attached) return;
   el.addEventListener("click", (e) => {
@@ -65,28 +47,32 @@ function attachClickOnce(el, fn) {
   el._attached = true;
 }
 
-// Open file picker
+/* -------------------------------------------------------
+   FILE INPUT + BROWSE
+---------------------------------------------------------*/
+
 attachClickOnce(browse, (e) => {
   e.preventDefault();
-  setTimeout(() => fileInput && fileInput.click(), 0);
+  fileInput.click();
 });
 
 if (replaceBtn) {
   replaceBtn.addEventListener("click", (e) => {
     e.preventDefault();
-    if (fileInput) fileInput.click();
+    fileInput.click();
   });
 }
 
-// File choose -> load
-if (fileInput) {
-  fileInput.addEventListener("change", () => {
-    const f = fileInput.files?.[0];
-    if (f) handleFile(f);
-  });
-}
+// Handle image selection
+fileInput.addEventListener("change", () => {
+  const f = fileInput.files?.[0];
+  if (f) handleFile(f);
+});
 
-// Drag/drop handlers
+/* -------------------------------------------------------
+   DRAG & DROP
+---------------------------------------------------------*/
+
 if (drop) {
   ['dragenter','dragover'].forEach(ev =>
     drop.addEventListener(ev, (e) => {
@@ -110,13 +96,13 @@ if (drop) {
   drop.addEventListener("keydown", (e) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      if (fileInput) fileInput.click();
+      fileInput.click();
     }
   });
 }
 
 /* -------------------------------------------------------
-   3. FILE PROCESSING + PREVIEW
+   FILE READING + PREVIEW
 ---------------------------------------------------------*/
 
 function handleFile(file) {
@@ -145,68 +131,63 @@ function handleFile(file) {
 
     refreshAnalyzeState();
   };
+
   reader.readAsDataURL(file);
 }
 
 function formatBytes(bytes) {
-  const sizes = ['B','KB','MB','GB'];
+  const units = ['B','KB','MB','GB'];
   const i = bytes === 0 ? 0 : Math.floor(Math.log(bytes) / Math.log(1024));
-  return (bytes / Math.pow(1024, i)).toFixed(i ? 1 : 0) + ' ' + sizes[i];
+  return (bytes / Math.pow(1024, i)).toFixed(i ? 1 : 0) + " " + units[i];
 }
 
 /* -------------------------------------------------------
-   4. REMOVE / CLEAR
+   REMOVE IMAGE / CLEAR ALL
 ---------------------------------------------------------*/
 
-if (removeBtn) {
-  removeBtn.addEventListener("click", () => {
-    currentFile = null;
-    hasClassified = false;
+removeBtn.addEventListener("click", () => {
+  currentFile = null;
+  hasClassified = false;
 
-    thumb.removeAttribute("src");
-    fileInput.value = "";
-    preview.style.display = "none";
-    drop.style.display = "grid";
-    classifyBtn.style.display = "none";
-    classifyResults.style.display = "none";
+  thumb.removeAttribute("src");
+  fileInput.value = "";
+  preview.style.display = "none";
+  drop.style.display = "grid";
+  classifyBtn.style.display = "none";
+  classifyResults.style.display = "none";
 
-    refreshAnalyzeState();
-    showEmptyResults();
-  });
-}
+  refreshAnalyzeState();
+  showEmptyResults();
+});
 
-if (clearAllBtn) {
-  clearAllBtn.addEventListener("click", () => {
-    desc.value = "";
-    updateCounts();
+clearAllBtn.addEventListener("click", () => {
+  desc.value = "";
+  updateCounts();
 
-    currentFile = null;
-    hasClassified = false;
-    fileInput.value = "";
-    preview.style.display = "none";
-    drop.style.display = "grid";
-    classifyBtn.style.display = "none";
-    classifyResults.style.display = "none";
+  currentFile = null;
+  hasClassified = false;
 
-    niceClass.value = "";
-    productText.value = "";
+  fileInput.value = "";
+  preview.style.display = "none";
+  drop.style.display = "grid";
+  classifyBtn.style.display = "none";
+  classifyResults.style.display = "none";
 
-    showEmptyResults();
-    refreshAnalyzeState();
-  });
-}
+  niceClass.value = "";
+  productText.value = "";
+
+  showEmptyResults();
+  refreshAnalyzeState();
+});
 
 /* -------------------------------------------------------
-   5. COUNTERS
+   WORD / CHAR COUNTS
 ---------------------------------------------------------*/
 
 function updateCounts() {
   const text = desc.value.trim();
-  const words = text ? text.split(/\s+/).length : 0;
-
-  wordsEl.textContent = words;
+  wordsEl.textContent = text ? text.split(/\s+/).length : 0;
   charsEl.textContent = desc.value.length;
-
   refreshAnalyzeState();
 }
 
@@ -214,7 +195,7 @@ desc.addEventListener("input", updateCounts);
 updateCounts();
 
 /* -------------------------------------------------------
-   6. ENABLE/DISABLE ANALYZE BUTTON
+   ANALYZE BUTTON ENABLE/DISABLE
 ---------------------------------------------------------*/
 
 function refreshAnalyzeState() {
@@ -227,7 +208,7 @@ function refreshAnalyzeState() {
 }
 
 /* -------------------------------------------------------
-   7. CLASSIFY BUTTON (API CALL)
+   CLASSIFY BUTTON
 ---------------------------------------------------------*/
 
 classifyBtn.addEventListener("click", handleClassify);
@@ -275,19 +256,18 @@ async function handleClassify() {
 }
 
 /* -------------------------------------------------------
-   8. OUTPUT AREA (TEXT MODE ONLY)
+   TEXT OUTPUT + COPY BUTTON (comma separated)
 ---------------------------------------------------------*/
 
 function clearOutputs() {
   phrasesTextEl.value = "";
   phrasesTextEl.style.display = "none";
-
+  if (copyBtn) copyBtn.style.display = "none";
   if (tagsContainer) tagsContainer.replaceChildren();
 }
 
 function renderTags(tags = []) {
   if (!tagsContainer) return;
-
   tagsContainer.replaceChildren();
 
   if (!tags.length) {
@@ -306,32 +286,37 @@ function renderTags(tags = []) {
 }
 
 function renderPhrasesText(phrases = []) {
-  if (!phrasesTextEl) return false;
-
-  if (!phrases || phrases.length === 0) {
+  if (!phrases.length) {
     phrasesTextEl.style.display = "none";
-    const copyBtn = $("#copyBtn");
     if (copyBtn) copyBtn.style.display = "none";
-    return true;
+    return;
   }
 
   // Comma-separated list
-  const commaList = phrases.join(", ");
-
-  phrasesTextEl.value = commaList;
+  phrasesTextEl.value = phrases.join(", ");
   phrasesTextEl.style.display = "block";
 
-  // Show copy button
-  const copyBtn = $("#copyBtn");
   if (copyBtn) copyBtn.style.display = "inline-flex";
-
-  return true;
 }
 
+/* Copy button */
+copyBtn.addEventListener("click", () => {
+  phrasesTextEl.select();
+  phrasesTextEl.setSelectionRange(0, 99999);
+  navigator.clipboard.writeText(phrasesTextEl.value).then(() => {
+    copyBtn.textContent = "Copied!";
+    setTimeout(() => copyBtn.textContent = "Copy", 1200);
+  });
+});
 
 /* -------------------------------------------------------
-   9. ANALYZE BUTTON (COMPOSE API)
+   ANALYZE BUTTON — COMPOSE API
 ---------------------------------------------------------*/
+
+attachClickOnce(analyzeBtn, (e) => {
+  e.preventDefault();
+  handleAnalyze();
+});
 
 async function handleAnalyze() {
   results.hidden = false;
@@ -340,11 +325,7 @@ async function handleAnalyze() {
 
   clearOutputs();
 
-  const titleValue =
-    desc.value ||
-    productText.value ||
-    "";
-
+  const titleValue = desc.value.trim() || productText.value.trim();
   const niceVal = niceClass.value ? Number(niceClass.value) : 0;
 
   const form = new FormData();
@@ -375,9 +356,7 @@ async function handleAnalyze() {
       ? data.safe_phrases
       : simulateKeywords(titleValue);
 
-    const tags = Array.isArray(data.tags)
-      ? data.tags
-      : [];
+    const tags = Array.isArray(data.tags) ? data.tags : [];
 
     renderPhrasesText(safe);
     renderTags(tags);
@@ -391,33 +370,26 @@ async function handleAnalyze() {
   }
 }
 
-attachClickOnce(analyzeBtn, (e) => {
-  e.preventDefault();
-  handleAnalyze();
-});
-
 /* -------------------------------------------------------
-   10. FALLBACK KEYWORDS
+   FALLBACK KEYWORDS
 ---------------------------------------------------------*/
 
 function simulateKeywords(text) {
   const base = [
-    "handmade","artisan","custom","minimalist","leather","recycled paper"
+    "handmade","artisan","custom","minimalist",
+    "leather","recycled paper"
   ];
 
   const extra = (text || "")
     .toLowerCase()
     .match(/[a-z][a-z\- ]{2,}/g) || [];
 
-  const uniq = Array.from(
-    new Set([...extra.map(w => w.trim()), ...base])
-  );
-
+  const uniq = Array.from(new Set([...extra, ...base]));
   return uniq.slice(0, 18);
 }
 
 /* -------------------------------------------------------
-   11. INITIAL
+   INITIAL
 ---------------------------------------------------------*/
 
 function showEmptyResults() {
@@ -427,21 +399,4 @@ function showEmptyResults() {
 
 showEmptyResults();
 
-// COPY BUTTON
-const copyBtn = $("#copyBtn");
-if (copyBtn) {
-  copyBtn.addEventListener("click", () => {
-    if (!phrasesTextEl) return;
-    phrasesTextEl.select();
-    phrasesTextEl.setSelectionRange(0, 99999);
-    navigator.clipboard.writeText(phrasesTextEl.value)
-      .then(() => {
-        copyBtn.textContent = "Copied!";
-        setTimeout(() => copyBtn.textContent = "Copy", 1200);
-      })
-      .catch(err => console.error("Copy failed:", err));
-  });
-}
-
-
-console.log("script.js (fixed) loaded");
+console.log("script.js (final cleaned) loaded");
