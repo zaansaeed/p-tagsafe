@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from config import MODEL_ID, get_model
 
-
+# Base model used for OCR + classification
 model = get_model(MODEL_ID)
 
 SYSTEM_INSTRUCTIONS = (
@@ -54,6 +54,7 @@ GENERATION_CONFIG = {
     "temperature": 0.2,
 }
 
+# Vision model with system instructions for OCR + classification
 model = get_model(
     MODEL_ID,
     system_instruction=SYSTEM_INSTRUCTIONS,
@@ -80,7 +81,6 @@ Output strictly as JSON with this schema:
 }}
 """
 
-
 router = APIRouter(prefix="/parser", tags=["parser"])
 
 # Accepts an image file and returns text + Nice class as JSON.
@@ -99,6 +99,7 @@ async def parse_image(image: UploadFile = File(...)):
         {"mime_type": content_type, "data": img_bytes},
     ]
 
+    # First: OCR + object classification
     try:
         resp = model.generate_content(
             parts,
@@ -108,6 +109,7 @@ async def parse_image(image: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"LLM call failed: {e}")
 
+    # Parse JSON from the model
     try:
         data = json.loads(resp.text)
         if not isinstance(data, dict):
@@ -115,10 +117,49 @@ async def parse_image(image: UploadFile = File(...)):
     except Exception:
         raise HTTPException(status_code=502, detail=f"Non-JSON model response: {resp.text!r}")
 
+    # Ensure expected keys exist
     data.setdefault("text", "")
     data.setdefault("object_type", "")
     data.setdefault("confidence", 0.0)
     data.setdefault("notes", "")
+
+    # Grab the cleaned values
+    text = data.get("text", "")
+    object_type = data.get("object_type", "")
+
+    # --- NEW: generate a listing-style description using the text + object type ---
+    description = ""
+    try:
+        desc_model = get_model(MODEL_ID)
+
+        desc_prompt = f"""
+You are helping write an e-commerce listing.
+
+Here is OCR text extracted from the product image:
+{text}
+
+Here is the Nice class / object type classification:
+{object_type}
+
+Write a short, shopper-friendly listing description (2–3 sentences) describing the product.
+Do NOT include any brand names or trademarks. Focus on what the item is, its materials,
+its purpose, style, and key features. Keep it suitable for a generic online marketplace.
+
+Example style:
+"Hand-stitched leather journal with recycled paper, A5 size. Personalized engraving available.
+Minimalist travel notebook for writers & artists."
+
+Now generate the listing description:
+"""
+
+        desc_resp = desc_model.generate_content(desc_prompt)
+        description = (getattr(desc_resp, "text", "") or "").strip()
+    except Exception:
+        # If the description generation fails, don't kill the whole endpoint
+        description = ""
+
+    # Attach the description to the result JSON
+    data["description"] = description
 
     return {
         "ok": True,
