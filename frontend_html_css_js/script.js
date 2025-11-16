@@ -33,6 +33,7 @@ const empty = $('#empty');
 const phrasesTextEl = $('#phrasesText');
 const copyBtn = $('#copyBtn');
 const tagsContainer = $('#tagsList') || null;
+const exampleDesc = $('#exampleDesc');
 
 // State
 let currentFile = null;
@@ -344,7 +345,12 @@ async function handleAnalyze() {
   const titleValue =
     desc.value.trim() ||                                  
     (aiDescription ? aiDescription.value.trim() : "") ||   
-    productText.value.trim();                              
+    productText.value.trim();     
+    
+  if (exampleDesc) {
+  exampleDesc.value = titleValue;
+}
+
 
   const niceVal = niceClass.value ? Number(niceClass.value) : 0;
 
@@ -415,6 +421,9 @@ function simulateKeywords(text) {
 function showEmptyResults() {
   phrasesTextEl.style.display = "none";
   empty.hidden = false;
+    if (exampleDesc) {
+    exampleDesc.value = "";
+  }
 }
 
 showEmptyResults();
