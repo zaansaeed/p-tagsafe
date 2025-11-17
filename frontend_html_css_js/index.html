@@ -44,6 +44,7 @@
                 <button class="success" id="classifyBtn" type="button" style="display: none;">Classify</button>
             </div>
 
+            <!--REMOVE
             <div id="classifyResults" class="classify-output" style="display: none;">
                 <div class="field">
                     <label for="niceClass">Nice Class</label>
@@ -55,6 +56,26 @@
                     <textarea id="productText" placeholder="Classification description..."></textarea>
                 </div>
             </div>
+             -->
+
+            <div id="classifyResults" class="classify-output" style="display: none;">
+                <div class="field">
+                    <label for="niceClass">Nice Class</label>
+                    <input type="text" id="niceClass" placeholder="e.g., 025" />
+                    <div id="classDescription" class="class-description"></div>
+                </div>
+                <div class="field">
+                    <label for="productText">Product Text</label>
+                    <textarea id="productText" placeholder="Classification description..."></textarea>
+                </div>
+                <!-- added description box -->
+                <div class="field">
+                    <label for="aiDescription">Description</label>
+                    <textarea id="aiDescription" placeholder="Auto-generated listing description..."></textarea>
+                </div>
+            </div>
+
+
         </section>
 
         <!-- Text Input Card -->
@@ -95,6 +116,19 @@
 
 
             <p id="empty" class="sub" hidden>Nothing to show yet. Add an image or some text and click <em>Check</em>.</p>
+        
+
+
+
+                <!--example Etsy-style listing description -->
+            <div class="field" style="margin-top:16px;">
+                <label for="exampleDesc">Example listing description</label>
+                <textarea
+                    id="exampleDesc"
+                    rows="4"
+                    placeholder="Run Check to generate an example listing description..."
+                ></textarea>
+            </div>
         </section>
     </main>
 

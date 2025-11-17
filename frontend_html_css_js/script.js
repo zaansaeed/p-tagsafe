@@ -17,6 +17,8 @@ const niceClass = $('#niceClass');
 const productText = $('#productText');
 const classDescription = $('#classDescription');
 
+
+
 const desc = $('#desc');
 const wordsEl = $('#words');
 const charsEl = $('#chars');
@@ -31,6 +33,7 @@ const empty = $('#empty');
 const phrasesTextEl = $('#phrasesText');
 const copyBtn = $('#copyBtn');
 const tagsContainer = $('#tagsList') || null;
+const exampleDesc = $('#exampleDesc');
 
 // State
 let currentFile = null;
@@ -156,9 +159,14 @@ removeBtn.addEventListener("click", () => {
   classifyBtn.style.display = "none";
   classifyResults.style.display = "none";
 
+  if (aiDescription) {
+    aiDescription.value = "";
+  }
+
   refreshAnalyzeState();
   showEmptyResults();
 });
+
 
 clearAllBtn.addEventListener("click", () => {
   desc.value = "";
@@ -175,6 +183,9 @@ clearAllBtn.addEventListener("click", () => {
 
   niceClass.value = "";
   productText.value = "";
+  if(aiDescription) {
+    aiDescription.value = "";
+  }
 
   showEmptyResults();
   refreshAnalyzeState();
@@ -240,6 +251,12 @@ async function handleClassify() {
 
     niceClass.value = classNumber;
     productText.value = data.result?.text || "";
+
+    //listing description from backend
+    if (aiDescription) {
+      aiDescription.value = data.result?.description || "";
+    }
+
     classifyResults.style.display = "grid";
 
     hasClassified = true;
@@ -325,7 +342,16 @@ async function handleAnalyze() {
 
   clearOutputs();
 
-  const titleValue = desc.value.trim() || productText.value.trim();
+  const titleValue =
+    desc.value.trim() ||                                  
+    (aiDescription ? aiDescription.value.trim() : "") ||   
+    productText.value.trim();     
+    
+  if (exampleDesc) {
+  exampleDesc.value = titleValue;
+}
+
+
   const niceVal = niceClass.value ? Number(niceClass.value) : 0;
 
   const form = new FormData();
@@ -395,6 +421,9 @@ function simulateKeywords(text) {
 function showEmptyResults() {
   phrasesTextEl.style.display = "none";
   empty.hidden = false;
+    if (exampleDesc) {
+    exampleDesc.value = "";
+  }
 }
 
 showEmptyResults();
