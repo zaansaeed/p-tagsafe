@@ -1,4 +1,4 @@
-#!/Users/eastanthetoo/Desktop/p-tagsafe/p-tagsafe/.venv/bin/python
+#!/Users/eastanthetoo/Desktop/p-tagsafe/p-tagsafe/.venv/bin/python3.11
 import sys
 from rsa.cli import encrypt
 if __name__ == '__main__':
