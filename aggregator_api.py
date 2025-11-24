@@ -31,6 +31,12 @@ async def compose_all(
         generated_text = generating_phrases(title)
         labeled, safe = label_and_filter_phrases(generated_text)
         safe_phrases = [r["phrase"] for r in safe]
+        from ranking_api import rank_phrases, RankRequest
+        RankRequestModel = RankRequest(
+            user_text= "PRODUCT TEXT: " + product_text + " USER DESCRIPTION: " + title,
+            phrases=safe_phrases)
+        ranked_tags = rank_phrases(RankRequestModel)
+        safe_phrases = ranked_tags
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"description generation failed: {e}")
 
@@ -50,13 +56,6 @@ async def compose_all(
 
         try:
             tags = generate_tags_from_llm(nice_class=nice_class, product_text=product_text, image=img)
-            from ranking_api import rank_phrases, RankRequest
-            RankRequestModel = RankRequest(
-                user_text= "PRODUCT TEXT: " + product_text + " USER DESCRIPTION: " + title,
-                phrases=tags)
-            
-            ranked_tags = rank_phrases(RankRequestModel)
-            tags = ranked_tags
         except HTTPException:
             raise
         except Exception as e:
