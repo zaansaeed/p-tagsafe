@@ -23,6 +23,8 @@ const desc = $('#desc');
 const wordsEl = $('#words');
 const charsEl = $('#chars');
 
+const aiDescription = $('#aiDescription');
+
 const analyzeBtn = $('#analyze');
 const clearAllBtn = $('#clearAll');
 
@@ -346,10 +348,7 @@ async function handleAnalyze() {
     desc.value.trim() ||                                  
     (aiDescription ? aiDescription.value.trim() : "") ||   
     productText.value.trim();     
-    
-  if (exampleDesc) {
-  exampleDesc.value = titleValue;
-}
+
 
 
   const niceVal = niceClass.value ? Number(niceClass.value) : 0;
@@ -377,6 +376,15 @@ async function handleAnalyze() {
     }
 
     const data = await resp.json();
+
+    // Use the backend-composed SAFE description (built from non-trademarked candidates)
+    if (exampleDesc) {
+      const safeListing =
+        (data.safe_listing_description || "").trim() ||  // from /compose/all
+        titleValue;                                      // fallback
+      exampleDesc.value = safeListing;
+    }
+
 
     const safe = Array.isArray(data.safe_phrases)
       ? data.safe_phrases

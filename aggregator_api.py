@@ -3,7 +3,12 @@ from pydantic import BaseModel
 from PIL import Image
 import io
 
-from updated_description_gen import generating_phrases, label_and_filter_phrases
+from updated_description_gen import (
+    generating_phrases,
+    label_and_filter_phrases,
+    compose_safe_listing_description_from_phrases,
+)
+
 from tag_generator_api import generate_tags_from_llm
 
 router = APIRouter(prefix="/compose", tags=["compose"])
@@ -13,6 +18,7 @@ class ComposeResponse(BaseModel):
     safe_phrases: list[str]
     all_labeled: list[dict]
     tags: list[str]
+    safe_listing_description: str   
 
 
 @router.post("/all", response_model=ComposeResponse)
@@ -31,6 +37,12 @@ async def compose_all(
         generated_text = generating_phrases(title)
         labeled, safe = label_and_filter_phrases(generated_text)
         safe_phrases = [r["phrase"] for r in safe]
+        safe_listing_description = compose_safe_listing_description_from_phrases(
+        title=title,
+        safe_phrases=safe_phrases,
+    )
+
+
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"description generation failed: {e}")
 
@@ -55,4 +67,9 @@ async def compose_all(
         except Exception as e:
             raise HTTPException(status_code=502, detail=f"tag generation failed: {e}")
 
-    return {"safe_phrases": safe_phrases, "all_labeled": labeled, "tags": tags}
+    return {
+        "safe_phrases": safe_phrases,
+        "all_labeled": labeled,
+        "tags": tags,
+        "safe_listing_description": safe_listing_description,
+    }
