@@ -347,9 +347,6 @@ async function handleAnalyze() {
     (aiDescription ? aiDescription.value.trim() : "") ||   
     productText.value.trim();     
     
-  if (exampleDesc) {
-  exampleDesc.value = titleValue;
-}
 
 
   const niceVal = niceClass.value ? Number(niceClass.value) : 0;
@@ -386,6 +383,15 @@ async function handleAnalyze() {
 
     renderPhrasesText(safe);
     renderTags(tags);
+
+
+    if (exampleDesc) {
+      const safeListing =
+        typeof data.safe_listing_description === "string"
+          ? data.safe_listing_description.trim()
+          : "";
+      exampleDesc.value = safeListing || titleValue;
+    }
 
   } catch (err) {
     console.error("Compose API error", err);

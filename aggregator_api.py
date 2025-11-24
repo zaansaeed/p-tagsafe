@@ -2,6 +2,8 @@ from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from PIL import Image
 import io
+import re  # NEW
+
 
 from updated_description_gen import generating_phrases, label_and_filter_phrases
 from tag_generator_api import generate_tags_from_llm
@@ -13,6 +15,41 @@ class ComposeResponse(BaseModel):
     safe_phrases: list[str]
     all_labeled: list[dict]
     tags: list[str]
+    safe_listing_description: str  # NEW
+
+
+def make_safe_listing_description(
+    original_description: str,
+    labeled: list[dict],
+    safe: list[dict],
+) -> str:
+    original_description = (original_description or "").strip()
+    if not original_description:
+        return ""
+
+    safe_set = {row.get("phrase", "") for row in safe if row.get("phrase")}
+
+    flagged_phrases: list[str] = []
+    for row in labeled:
+        phrase = row.get("phrase")
+        if phrase and phrase not in safe_set:
+            flagged_phrases.append(phrase)
+
+    cleaned = original_description
+
+
+    for phrase in flagged_phrases:
+        pattern = re.compile(r"\b" + re.escape(phrase) + r"\b", flags=re.IGNORECASE)
+        cleaned = pattern.sub("", cleaned)
+
+
+    cleaned = re.sub(r"\s{2,}", " ", cleaned)
+    cleaned = re.sub(r"\s+([.,!?;:])", r"\1", cleaned)
+    cleaned = cleaned.strip()
+
+    return cleaned or original_description
+
+
 
 
 @router.post("/all", response_model=ComposeResponse)
@@ -33,6 +70,13 @@ async def compose_all(
         safe_phrases = [r["phrase"] for r in safe]
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"description generation failed: {e}")
+
+    #Build safe listing description by strip USPTO-flagged phrases
+    safe_listing_description = make_safe_listing_description(
+        original_description=title,
+        labeled=labeled,
+        safe=safe,
+    )
 
     # Generate tags only if image provided
     tags: list[str] = []
@@ -55,4 +99,9 @@ async def compose_all(
         except Exception as e:
             raise HTTPException(status_code=502, detail=f"tag generation failed: {e}")
 
-    return {"safe_phrases": safe_phrases, "all_labeled": labeled, "tags": tags}
+    return {
+        "safe_phrases": safe_phrases,
+        "all_labeled": labeled,
+        "tags": tags,
+        "safe_listing_description": safe_listing_description,  
+    }
