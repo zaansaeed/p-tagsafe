@@ -45,4 +45,5 @@ def rank_phrases(req: RankRequest):
     # Score & sort
     scored = [(phrases[i], _cosine(phrase_vecs[i], user_vec)) for i in range(len(phrases))]
     scored.sort(key=lambda t: (-t[1], len(t[0]), t[0]))
+    scored = scored[:20]
     return [phrase for phrase, _ in scored]

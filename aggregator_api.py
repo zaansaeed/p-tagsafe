@@ -50,6 +50,13 @@ async def compose_all(
 
         try:
             tags = generate_tags_from_llm(nice_class=nice_class, product_text=product_text, image=img)
+            from ranking_api import rank_phrases, RankRequest
+            RankRequestModel = RankRequest(
+                user_text= "PRODUCT TEXT: " + product_text + " USER DESCRIPTION: " + title,
+                phrases=tags)
+            
+            ranked_tags = rank_phrases(RankRequestModel)
+            tags = ranked_tags
         except HTTPException:
             raise
         except Exception as e:
