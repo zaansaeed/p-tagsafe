@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from PIL import Image  # For handling image objects
 import io
 from config import MODEL_ID, get_model
+from ranking_api import RankRequest, rank_phrases
 
 model = get_model(MODEL_ID)
 
@@ -65,21 +66,28 @@ def generate_tags_from_llm(nice_class: int, product_text: str, image: Optional[I
             parts.append(image)
         response = model.generate_content(
             parts if len(parts) > 1 else prompt,
-            generation_config={"temperature": 0.7} # A higher temperature encourages more creative/diverse tags
+            generation_config={"temperature": 0.7}
         )
-        
-        # Process the response text to create a clean list of tags
+
         if not response.text:
             return []
-            
+
         tags = [tag.strip() for tag in response.text.split('\n') if tag.strip()]
-        # Filter again to ensure character limit is respected, as LLMs can sometimes miss instructions
         valid_tags = [tag for tag in tags if len(tag) <= 20]
-        return valid_tags
+
+        # Apply semantic ranking to reorder tags by relevance to product_text
+        if valid_tags:
+            rank_req = RankRequest(
+                user_text=f"PRODUCT TEXT: {product_text} NICE CLASS: {nice_class}",
+                phrases=valid_tags
+            )
         
+        valid_tags = rank_phrases(rank_req)
+
+        return valid_tags
+
     except Exception as e:
         print(f"An error occurred during LLM call: {e}")
-        # In an API context, re-raise as HTTPException to inform the client
         raise HTTPException(status_code=500, detail=f"Failed to generate tags due to an internal error: {e}")
 
 
