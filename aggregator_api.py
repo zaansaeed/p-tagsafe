@@ -8,7 +8,7 @@ from updated_description_gen import (
     label_and_filter_phrases,
     compose_safe_listing_description_from_phrases,
 )
-
+from ranking_api import rank_phrases
 from tag_generator_api import generate_tags_from_llm
 
 router = APIRouter(prefix="/compose", tags=["compose"])
@@ -48,7 +48,7 @@ async def compose_all(
         safe_phrases = [r["phrase"] for r in safe]
         safe_listing_description = compose_safe_listing_description_from_phrases(
         title=title,
-        safe_phrases=safe_phrases,
+        safe_phrases=rank_phrases(safe_phrases),
     )
 
 
