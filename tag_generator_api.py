@@ -8,6 +8,8 @@ from PIL import Image  # For handling image objects
 import io
 from config import MODEL_ID, get_model
 from ranking_api import RankRequest, rank_phrases
+from tmcheck_api import check_one_phrase
+import asyncio
 
 model = get_model(MODEL_ID)
 
@@ -18,7 +20,7 @@ class TagGenerationResponse(BaseModel):
     tags: list[str]
 
 # --- Core Logic ---
-def generate_tags_from_llm(nice_class: int, product_text: str, image: Optional[Image.Image] = None) -> list[str]:
+async def generate_tags_from_llm(nice_class: int, product_text: str, image: Optional[Image.Image] = None) -> list[str]:
     """
     Generates 50 marketable tags using the generative AI model based on an image.
 
@@ -28,7 +30,7 @@ def generate_tags_from_llm(nice_class: int, product_text: str, image: Optional[I
         image: A PIL Image object of the product.
 
     Returns:
-        A list of generated tags.
+        A list of generated tags filtered for trademark safety and ranked by relevance.
     """
     # This prompt is now multi-modal, guiding the AI to analyze the image.
     prompt = f"""
@@ -75,16 +77,25 @@ def generate_tags_from_llm(nice_class: int, product_text: str, image: Optional[I
         tags = [tag.strip() for tag in response.text.split('\n') if tag.strip()]
         valid_tags = [tag for tag in tags if len(tag) <= 20]
 
-        # Apply semantic ranking to reorder tags by relevance to product_text
+        # Check trademark safety via USPTO for each tag
         if valid_tags:
+            check_tasks = [check_one_phrase(tag, nice_class) for tag in valid_tags]
+            check_results = await asyncio.gather(*check_tasks)
+            
+            # Filter out blocked tags (those that returned a PhraseDecision)
+            safe_tags = [valid_tags[i] for i, result in enumerate(check_results) if result is None]
+        else:
+            safe_tags = []
+
+        # Apply semantic ranking to reorder safe tags by relevance
+        if safe_tags:
             rank_req = RankRequest(
                 user_text=f"PRODUCT TEXT: {product_text} NICE CLASS: {nice_class}",
-                phrases=valid_tags
+                phrases=safe_tags
             )
-        
-        valid_tags = rank_phrases(rank_req)
+            safe_tags = rank_phrases(rank_req)
 
-        return valid_tags
+        return safe_tags
 
     except Exception as e:
         print(f"An error occurred during LLM call: {e}")
@@ -111,7 +122,7 @@ async def generate_marketable_tags(
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Failed to read or process image file: {e}")
 
-    tags = generate_tags_from_llm(
+    tags = await generate_tags_from_llm(
         nice_class=nice_class,
         product_text=product_text,
         image=image_pil
@@ -141,20 +152,23 @@ if __name__ == "__main__":
         example_image = Image.open("image.png")
         print("Successfully loaded 'image.png' for testing.")
         
-        # Call the core logic function directly
-        generated_tags = generate_tags_from_llm(
-            nice_class=example_nice_class,
-            product_text=example_product_text,
-            image=example_image
-        )
+        # Call the core logic function directly (now async)
+        async def test_run():
+            generated_tags = await generate_tags_from_llm(
+                nice_class=example_nice_class,
+                product_text=example_product_text,
+                image=example_image
+            )
+            
+            # Print the results
+            if generated_tags:
+                print(f"\nSuccessfully generated {len(generated_tags)} trademark-safe tags:")
+                for i, tag in enumerate(generated_tags, 1):
+                    print(f"{i:2d}. {tag} (Length: {len(tag)})")
+            else:
+                print("\nGeneration failed. No tags were returned.")
         
-        # Print the results
-        if generated_tags:
-            print(f"\nSuccessfully generated {len(generated_tags)} tags:")
-            for i, tag in enumerate(generated_tags, 1):
-                print(f"{i:2d}. {tag} (Length: {len(tag)})")
-        else:
-            print("\nGeneration failed. No tags were returned.")
+        asyncio.run(test_run())
             
     except FileNotFoundError:
         print("\n--- TEST FAILED ---")
