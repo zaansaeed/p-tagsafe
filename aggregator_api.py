@@ -2,6 +2,8 @@ from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from PIL import Image
 import io
+from ranking_api import RankRequest, rank_phrases
+
 
 from updated_description_gen import (
     generating_phrases,
@@ -46,7 +48,6 @@ async def compose_all(
         generated_text = generating_phrases(title)
         labeled, safe = label_and_filter_phrases(generated_text)
         safe_phrases = [r["phrase"] for r in safe]
-        from ranking_api import RankRequest, rank_phrases
         RankRequestModel = RankRequest(
             user_text= "PRODUCT TEXT: " + product_text + " USER DESCRIPTION: " + title,
             phrases=safe_phrases)
@@ -76,6 +77,10 @@ async def compose_all(
 
         try:
             tags = generate_tags_from_llm(nice_class=nice_class, product_text=product_text, image=img)
+            RankRequestModel = RankRequest(
+                user_text= "PRODUCT TEXT: " + product_text + " USER DESCRIPTION: " + title,
+                phrases=tags)
+            tags = rank_phrases(RankRequestModel)
         except HTTPException:
             raise
         except Exception as e:
