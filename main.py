@@ -28,8 +28,6 @@ app.add_middleware(
     allow_headers=["*"],  
 )
 
-# Serve static frontend files
-app.mount("/static", StaticFiles(directory="frontend_html_css_js"), name="static")
 
 @app.get("/", tags=["Home"])
 def home():

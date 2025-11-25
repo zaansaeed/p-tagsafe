@@ -1,7 +1,8 @@
 # parser_api.py
-import os, json
+import os, json, re
 from typing import Optional
 from fastapi import APIRouter, UploadFile, File, HTTPException
+from pydantic import BaseModel
 from config import MODEL_ID, get_model
 
 # Base model used for OCR + classification
@@ -82,6 +83,10 @@ Output strictly as JSON with this schema:
 """
 
 router = APIRouter(prefix="/parser", tags=["parser"])
+
+
+class TextParseRequest(BaseModel):
+    description: str
 
 # Accepts an image file and returns text + Nice class as JSON.
 @router.post("/v1/parse-image")
@@ -168,5 +173,72 @@ Now generate the listing description:
             "model": MODEL_ID,
             "content_type": content_type,
             "bytes": len(img_bytes),
+        },
+    }
+
+
+TEXT_PROMPT_TEMPLATE = f"""
+You are a Nice Classification assistant. Given a product description, select the single best-matching Nice class from this list:
+{OBJECT_TYPE_HINTS}
+
+Respond strictly as JSON with the following schema:
+{{
+  "object_type": "Class 25 – Clothing",
+  "nice_class": 25,
+  "summary": "Optional short rationale or normalized description",
+  "confidence": 0.0
+}}
+"""
+
+
+def _extract_class_from_label(label: str) -> Optional[int]:
+    match = re.search(r"\b(\d{1,2})\b", label or "")
+    return int(match.group(1)) if match else None
+
+
+@router.post("/v1/parse-text")
+async def parse_text(payload: TextParseRequest):
+    description = (payload.description or "").strip()
+    if not description:
+        raise HTTPException(status_code=400, detail="description is required")
+
+    prompt = (
+        f"{TEXT_PROMPT_TEMPLATE}\n\n"
+        f"Product description:\n{description}\n"
+        "JSON:"
+    )
+
+    try:
+        resp = model.generate_content(
+            prompt,
+            generation_config=GENERATION_CONFIG,
+            safety_settings=None,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"LLM call failed: {e}")
+
+    try:
+        data = json.loads(resp.text)
+        if not isinstance(data, dict):
+            raise ValueError("model response not dict")
+    except Exception:
+        raise HTTPException(status_code=502, detail=f"Non-JSON model response: {resp.text!r}")
+
+    object_type = data.get("object_type", "")
+    nice_class = data.get("nice_class") or _extract_class_from_label(object_type)
+
+    result = {
+        "text": description,
+        "object_type": object_type,
+        "nice_class": nice_class,
+        "summary": data.get("summary", ""),
+        "confidence": data.get("confidence"),
+    }
+
+    return {
+        "ok": True,
+        "result": result,
+        "meta": {
+            "model": MODEL_ID,
         },
     }

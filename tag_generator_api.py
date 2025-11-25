@@ -1,5 +1,6 @@
 import os
 import re
+from typing import Optional
 from dotenv import load_dotenv
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel, Field
@@ -16,7 +17,7 @@ class TagGenerationResponse(BaseModel):
     tags: list[str]
 
 # --- Core Logic ---
-def generate_tags_from_llm(nice_class: int, product_text: str, image: Image.Image) -> list[str]:
+def generate_tags_from_llm(nice_class: int, product_text: str, image: Optional[Image.Image] = None) -> list[str]:
     """
     Generates 50 marketable tags using the generative AI model based on an image.
 
@@ -59,9 +60,11 @@ def generate_tags_from_llm(nice_class: int, product_text: str, image: Image.Imag
     """
 
     try:
-        # Pass both the text prompt and the image object to the model
+        parts = [prompt]
+        if image is not None:
+            parts.append(image)
         response = model.generate_content(
-            [prompt, image], # Multi-modal input
+            parts if len(parts) > 1 else prompt,
             generation_config={"temperature": 0.7} # A higher temperature encourages more creative/diverse tags
         )
         
@@ -85,21 +88,20 @@ def generate_tags_from_llm(nice_class: int, product_text: str, image: Image.Imag
 async def generate_marketable_tags(
     nice_class: int = Form(...),
     product_text: str = Form(default=""),
-    image_file: UploadFile = File(...)
+    image_file: Optional[UploadFile] = File(None)
 ):
     """
     API endpoint to generate 50 marketable tags based on a product image and info.
     """
-    # Validate image file type
-    if not image_file.content_type or not image_file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Invalid file type. Please upload an image.")
-
-    try:
-        # Read image bytes and open with PIL
-        image_bytes = await image_file.read()
-        image_pil = Image.open(io.BytesIO(image_bytes))
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to read or process image file: {e}")
+    image_pil = None
+    if image_file is not None:
+        if not image_file.content_type or not image_file.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="Invalid file type. Please upload an image.")
+        try:
+            image_bytes = await image_file.read()
+            image_pil = Image.open(io.BytesIO(image_bytes))
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to read or process image file: {e}")
 
     tags = generate_tags_from_llm(
         nice_class=nice_class,

@@ -116,6 +116,55 @@ def label_and_filter_phrases(generated_text):
     return labeled, safe_only
 
 
+
+def compose_safe_listing_description_from_phrases(
+    title: str,
+    safe_phrases: list[str],
+) -> str:
+    title = (title or "").strip()
+    if not safe_phrases:
+        
+        return title
+
+    
+    phrase_lines = "\n".join(f"- {p}" for p in safe_phrases if p)
+
+    prompt = f"""
+You are an expert Etsy copywriter.
+
+You are given a list of SAFE phrases that have already been checked for trademark issues:
+
+{phrase_lines}
+
+Your task:
+- Write a short, natural Etsy listing description (2–4 sentences).
+- Build the description ONLY using these safe phrases plus neutral glue words (“a”, “the”, “and”, “for”, “with”, “in”, “of”, “to”).
+- Avoid repeating any single noun more than once (e.g., do NOT say “shirt” multiple times).
+- Use each phrase at most one time. Do not reuse phrases unless absolutely necessary.
+- Vary the nouns you choose from the list to prevent repetition.
+- Vary sentence structure so the text flows naturally and does not sound formulaic.
+- Combine phrases smoothly so the description reads like human-written copy.
+- Do NOT invent any new branded or trademarkable phrases.
+- Do NOT use any special formatting such as asterisks, bold, italics, emojis, markdown characters, or quotation marks.
+- Output ONLY the final description text—no bullets, no explanations.
+"""
+
+    try:
+        response = model.generate_content(
+            prompt,
+            generation_config={"temperature": 0.3},  # keep it restrained
+        )
+        text = (response.text or "").strip()
+        if not text:
+            # Very conservative fallback
+            return ", ".join(safe_phrases[:5])
+        return text
+    except Exception as e:
+        print(f"compose_safe_listing_description_from_phrases error: {e}")
+        return title or ", ".join(safe_phrases[:5])
+
+
+
 # Guard the example/test run so importing this module doesn't execute it.
 if __name__ == "__main__":
     for title in etsy_titles:
@@ -129,9 +178,3 @@ if __name__ == "__main__":
         print("\nSAFE PHRASES:")
         for r in safe:
             print(f"- {r['phrase']}")
-
-
-
-
-
-
