@@ -46,9 +46,14 @@ async def compose_all(
         generated_text = generating_phrases(title)
         labeled, safe = label_and_filter_phrases(generated_text)
         safe_phrases = [r["phrase"] for r in safe]
+        from ranking_api import RankRequest, rank_phrases
+        RankRequestModel = RankRequest(
+            user_text= "PRODUCT TEXT: " + product_text + " USER DESCRIPTION: " + title,
+            phrases=safe_phrases)
+        safe_phrases = rank_phrases(RankRequestModel)
         safe_listing_description = compose_safe_listing_description_from_phrases(
         title=title,
-        safe_phrases=rank_phrases(safe_phrases),
+        safe_phrases=safe_phrases,
     )
 
 
