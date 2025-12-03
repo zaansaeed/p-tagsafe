@@ -28,6 +28,18 @@ const InsightsPanel = ({
   checkDisabled,
   checkState,
 }) => {
+  const [copySuccess, setCopySuccess] = useState(false)
+
+  const handleCopyTags = () => {
+    const tagText = checkState.tags.join(', ')
+    navigator.clipboard.writeText(tagText).then(() => {
+      setCopySuccess(true)
+      setTimeout(() => setCopySuccess(false), 2000)
+    }).catch(err => {
+      console.error('Failed to copy:', err)
+    })
+  }
+
   if (!analysis) {
     return (
       <div className="placeholder-panel">
@@ -65,7 +77,28 @@ const InsightsPanel = ({
       {checkState.error && <p className="error-text">{checkState.error}</p>}
       {checkState.tags.length > 0 && (
         <div className="safe-terms">
-          <h3>Non-trademark Terms</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+            <h3 style={{ margin: 0 }}>Non-trademark Terms</h3>
+            <button
+              type="button"
+              onClick={handleCopyTags}
+              style={{
+                padding: '0.5rem 1rem',
+                fontSize: '0.875rem',
+                fontWeight: '500',
+                backgroundColor: copySuccess ? '#10b981' : '#3b82f6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '0.375rem',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s'
+              }}
+              onMouseEnter={(e) => !copySuccess && (e.target.style.backgroundColor = '#2563eb')}
+              onMouseLeave={(e) => !copySuccess && (e.target.style.backgroundColor = '#3b82f6')}
+            >
+              {copySuccess ? '✓ Copied!' : 'Copy All'}
+            </button>
+          </div>
           <div className="chip-grid">
             {checkState.tags.map((term) => (
               <span className="chip" key={term}>
@@ -73,6 +106,15 @@ const InsightsPanel = ({
               </span>
             ))}
           </div>
+          <p style={{
+            marginTop: '1rem',
+            fontSize: '0.75rem',
+            color: '#6b7280',
+            fontStyle: 'italic',
+            lineHeight: '1.4'
+          }}>
+            Disclaimer: These terms are AI-generated suggestions. We are not responsible for any trademark, copyright, or intellectual property issues arising from the use of these terms. Please conduct your own due diligence before use.
+          </p>
         </div>
       )}
       {checkState.generatedDescription && (
