@@ -92,6 +92,11 @@ async def generate_tags_from_llm(nice_class: int, product_text: str, image: Opti
             # Filter out blocked tags (those that returned a PhraseDecision)
             safe_tags = [valid_tags[i] for i, result in enumerate(check_results) if result is None]
             print("DEBUG: SAFE TAGS AFTER TM CHECK:", len(safe_tags))
+
+            # If all tags were filtered out by the TM check, fall back to the original valid tags
+            if not safe_tags:
+                print("DEBUG: No safe_tags after TM check, falling back to valid_tags")
+                safe_tags = valid_tags
         else:
             safe_tags = []
 
