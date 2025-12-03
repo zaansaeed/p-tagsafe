@@ -6,6 +6,6 @@ export default defineConfig({
 
   // Add this block below ⬇️
   preview: {
-    allowedHosts: ["sunny-flow-production-b6eb.up.railway.app"],
+    allowedHosts: ["sunny-flow-production-b6eb.up.railway.app", "tagsafe.us"],
   },
 })
