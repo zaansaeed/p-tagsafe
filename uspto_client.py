@@ -28,7 +28,7 @@ async def check_trademark_available(term: str) -> Dict[str, Any]:
     safe_term = urllib.parse.quote(term)
     url = f"{BASE}/trademarkAvailable/{safe_term}"
     try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
+        async with httpx.AsyncClient(timeout=5.0) as client:
             r = await client.get(url, headers=HEADERS)
     except Exception as e:
         # Network/transport error

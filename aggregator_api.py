@@ -51,7 +51,7 @@ async def compose_all(
         RankRequestModel = RankRequest(
             user_text= "PRODUCT TEXT: " + product_text + " USER DESCRIPTION: " + title,
             phrases=safe_phrases)
-        safe_phrases = rank_phrases(RankRequestModel)
+        safe_phrases = await rank_phrases(RankRequestModel)
         safe_listing_description = compose_safe_listing_description_from_phrases(
         title=title,
         safe_phrases=safe_phrases,
@@ -76,11 +76,11 @@ async def compose_all(
             raise HTTPException(status_code=400, detail=f"Invalid image: {e}")
 
         try:
-            tags = generate_tags_from_llm(nice_class=nice_class, product_text=product_text, image=img)
+            tags = await generate_tags_from_llm(nice_class=nice_class, product_text=product_text, image=img)
             RankRequestModel = RankRequest(
                 user_text= "PRODUCT TEXT: " + product_text + " USER DESCRIPTION: " + title,
                 phrases=tags)
-            tags = rank_phrases(RankRequestModel)
+            tags = await rank_phrases(RankRequestModel)
         except HTTPException:
             raise
         except Exception as e:

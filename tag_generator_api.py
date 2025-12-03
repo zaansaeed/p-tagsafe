@@ -87,10 +87,20 @@ async def generate_tags_from_llm(nice_class: int, product_text: str, image: Opti
         # Check trademark safety via USPTO for each tag
         if valid_tags:
             check_tasks = [check_one_phrase(tag, nice_class) for tag in valid_tags]
-            check_results = await asyncio.gather(*check_tasks)
+            check_results = await asyncio.gather(*check_tasks, return_exceptions=True)
             
-            # Filter out blocked tags (those that returned a PhraseDecision)
-            safe_tags = [valid_tags[i] for i, result in enumerate(check_results) if result is None]
+            # Filter out blocked tags (those that returned a PhraseDecision) and exceptions
+            safe_tags = []
+            for i, result in enumerate(check_results):
+                if isinstance(result, Exception):
+                    print(f"DEBUG: TM check exception for '{valid_tags[i]}': {result}")
+                    # On error, assume safe (fail open)
+                    safe_tags.append(valid_tags[i])
+                elif result is None:
+                    # None means safe
+                    safe_tags.append(valid_tags[i])
+                # else: result is PhraseDecision, blocked
+            
             print("DEBUG: SAFE TAGS AFTER TM CHECK:", len(safe_tags))
 
             # If all tags were filtered out by the TM check, fall back to the original valid tags
@@ -102,11 +112,16 @@ async def generate_tags_from_llm(nice_class: int, product_text: str, image: Opti
 
         # Apply semantic ranking to reorder safe tags by relevance
         if safe_tags:
-            rank_req = RankRequest(
-                user_text=f"PRODUCT TEXT: {product_text} NICE CLASS: {nice_class}",
-                phrases=safe_tags
-            )
-            safe_tags = rank_phrases(rank_req)
+            try:
+                rank_req = RankRequest(
+                    user_text=f"PRODUCT TEXT: {product_text} NICE CLASS: {nice_class}",
+                    phrases=safe_tags
+                )
+                safe_tags = await rank_phrases(rank_req)
+            except Exception as rank_error:
+                print(f"DEBUG: Ranking failed ({rank_error}), returning unranked tags")
+                # Return unranked tags if ranking fails
+                pass
 
         return safe_tags
 

@@ -35,4 +35,51 @@ def embed_text(text: str) -> List[float]:
     return _normalize_embedding(res)
 
 def embed_texts(texts: List[str]) -> List[List[float]]:
-    return [embed_text(t) for t in texts]
+    """
+    Batch embed all texts in a single API call for massive performance gain.
+    Falls back to sequential if batch fails.
+    """
+    if not texts:
+        return []
+    
+    if len(texts) == 1:
+        return [embed_text(texts[0])]
+    
+    try:
+        # Batch embed all texts at once
+        result = genai.embed_content(
+            model=EMB_MODEL_ID,
+            content=texts,
+            task_type="semantic_similarity"
+        )
+        
+        # Handle batch response format - Google API returns dict with 'embedding' key for batches
+        if isinstance(result, dict):
+            # Check for batch response with 'embedding' containing list of embeddings
+            if "embedding" in result:
+                emb = result["embedding"]
+                # If it's a list of vectors, return them
+                if isinstance(emb, list) and len(emb) > 0:
+                    if isinstance(emb[0], list):
+                        # Already a list of embeddings
+                        return emb
+                    elif isinstance(emb[0], (int, float)):
+                        # Single embedding vector
+                        return [emb]
+                # Otherwise normalize as single embedding
+                return [_normalize_embedding(result)]
+            # Check for 'embeddings' plural (some API versions)
+            elif "embeddings" in result:
+                embeddings = result["embeddings"]
+                if isinstance(embeddings, list):
+                    return [_normalize_embedding(e) for e in embeddings]
+        elif isinstance(result, list):
+            # List of embeddings
+            return [_normalize_embedding(r) for r in result]
+        
+        # Fallback to sequential
+        print(f"Unexpected batch embedding format: {type(result)}, falling back to sequential")
+        return [embed_text(t) for t in texts]
+    except Exception as e:
+        print(f"Batch embedding failed ({e}), falling back to sequential")
+        return [embed_text(t) for t in texts]

@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import List
 import math
+import asyncio
 from config import MODEL_ID, EMB_MODEL_ID, get_model
 from services_embed import embed_texts
 
@@ -19,12 +20,12 @@ def _cosine(a, b) -> float:
     nb = math.sqrt(sum(y*y for y in b)) + 1e-9
     return dot / (na * nb)
 
-def _embed(texts: List[str]) -> list[list[float]]:
-    # delegate to service that normalizes SDK responses
-    return embed_texts(texts)
+async def _embed(texts: List[str]) -> list[list[float]]:
+    # Run embedding in thread pool to avoid blocking
+    return await asyncio.to_thread(embed_texts, texts)
 
 @router.post("/rank", response_model=List[str])
-def rank_phrases(req: RankRequest):
+async def rank_phrases(req: RankRequest):
     phrases = [p.strip() for p in req.phrases if p and p.strip()]
     if not phrases:
         return []
@@ -38,7 +39,7 @@ def rank_phrases(req: RankRequest):
     phrases = uniq
     # Embed user text + phrases
     try:
-        embeds = _embed([req.user_text] + phrases)
+        embeds = await _embed([req.user_text] + phrases)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Embedding failed: {e}")
     user_vec, phrase_vecs = embeds[0], embeds[1:]
