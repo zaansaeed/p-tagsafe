@@ -71,11 +71,18 @@ async def generate_tags_from_llm(nice_class: int, product_text: str, image: Opti
             generation_config={"temperature": 0.7}
         )
 
+        # --- Debug logging for tag generation pipeline ---
+        print("RAW RESPONSE TEXT:", repr(response.text))
+
         if not response.text:
+            print("DEBUG: Model returned empty response.text")
             return []
 
         tags = [tag.strip() for tag in response.text.split('\n') if tag.strip()]
+        print("DEBUG: NUMBER OF TAGS FROM MODEL:", len(tags))
+
         valid_tags = [tag for tag in tags if len(tag) <= 20]
+        print("DEBUG: VALID TAGS (<=20 chars):", len(valid_tags))
 
         # Check trademark safety via USPTO for each tag
         if valid_tags:
@@ -84,6 +91,7 @@ async def generate_tags_from_llm(nice_class: int, product_text: str, image: Opti
             
             # Filter out blocked tags (those that returned a PhraseDecision)
             safe_tags = [valid_tags[i] for i, result in enumerate(check_results) if result is None]
+            print("DEBUG: SAFE TAGS AFTER TM CHECK:", len(safe_tags))
         else:
             safe_tags = []
 
@@ -178,4 +186,3 @@ if __name__ == "__main__":
         print(f"\nAn error occurred during the test: {e}")
     
     print("\n--- Test Complete ---")
-
