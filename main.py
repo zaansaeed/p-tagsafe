@@ -31,10 +31,6 @@ app.add_middleware(
 def health():
     return {"status": "ok"}
 
-@app.get("/", tags=["Home"])
-def home():
-    """Serve the frontend HTML page"""
-    return FileResponse("frontend_html_css_js/index.html")
 
 # Include all API routers
 app.include_router(tag_generator_router)
